@@ -62,9 +62,10 @@
                     // we found table with name == $table_name, lets go through DB fields
                     while (($table_field = fgets($db_file, 4096)) !== false) {
                         if (strpos($table_field, ") ENGINE=") !== false) {
-                            /* working for methods creating (write it in file)*/
+                            // thats for table name for function header
                             $table_name = ucfirst($table_name);
 
+                            // write queries like SELECT * FROM
                             fwrite($output_script_file,
                                     "\n\tfunction getAll$table_name()\n\t{\n ");
 
@@ -81,6 +82,47 @@
                                                         . "fetchAll();\n");
                             fwrite($output_script_file, "\t\treturn "
                                                         . '$' . "result;\n\t}\n");
+
+
+                            // write queries for ALL fields combinations
+                            $step = 1;
+                            $fields_num = count($table_fields_data);
+
+                            while ($step != $fields_num ) {
+                                for ($i = 0; $i < $fields_num - $step; $i++) {
+                                    $function_name = array();
+
+                                    for ($s = $i; $s < $i + $step; $s++) {
+                                        $function_name[] = $table_fields_data[$s];
+                                    }
+
+                                    for ($j = $i + $step; $j < $fields_num; $j++) {
+                                        $function_name[] = $table_fields_data[$j];
+
+                                        /* loop for writing function name and params*/
+                                        fwrite($output_script_file,
+                                                "\n\tfunction get"
+                                                . $table_name
+                                                . "By");
+
+                                        $fn_len = count($function_name);
+                                        for ($t = 0; $t < $fn_len; $t++) {
+                                            //print_r($function_name[$t]['name']);
+                                            fwrite($output_script_file,
+                                                    ucfirst($function_name[$t]['name']));
+
+                                        }
+                                        fwrite($output_script_file,
+                                                "()\n\t{ ");
+
+                                        //echo '<br>';
+                                        array_pop($function_name);
+                                    }
+
+                                }
+
+                                $step++;
+                            }
 
                             break;
                         }
