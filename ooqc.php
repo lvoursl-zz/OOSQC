@@ -99,7 +99,7 @@
                                     for ($j = $i + $step; $j < $fields_num; $j++) {
                                         $function_name[] = $table_fields_data[$j];
 
-                                        /* loop for writing function name and params*/
+                                        /* loop for writing function name s*/
                                         fwrite($output_script_file,
                                                 "\n\tfunction get"
                                                 . $table_name
@@ -107,15 +107,60 @@
 
                                         $fn_len = count($function_name);
                                         for ($t = 0; $t < $fn_len; $t++) {
-                                            //print_r($function_name[$t]['name']);
                                             fwrite($output_script_file,
                                                     ucfirst($function_name[$t]['name']));
 
                                         }
-                                        fwrite($output_script_file,
-                                                "()\n\t{ ");
+                                        fwrite($output_script_file, "(");
 
-                                        //echo '<br>';
+                                        /* loop for writing function params */
+                                        for ($t = 0; $t < $fn_len; $t++) {
+                                            fwrite($output_script_file,
+                                                    '$' . $function_name[$t]['name']);
+                                            if ($t != $fn_len - 1) {
+                                                fwrite($output_script_file, ', ');
+                                            }
+
+                                        }
+
+                                        fwrite($output_script_file,
+                                                ")\n\t{\n");
+
+                                        fwrite($output_script_file, "\t\tglobal "
+                                                                    . '$' . "conn;\n");
+
+                                        $select_query_string = "";
+                                        $bind_value_string = "";
+                                        for ($k = 0; $k < $fn_len; $k++) {
+                                            $select_query_string .= lcfirst($table_name)
+                                                                 . "." . $function_name[$k]['name']
+                                                                 . " = :" . $function_name[$k]['name']
+                                                                 . " ";
+                                            if ($k != $fn_len - 1) {
+                                                $select_query_string .= ", ";
+                                            }
+                                            //echo $select_query_string . '<br>';
+                                        }
+
+
+                                        fwrite($output_script_file, "\t\t" . '$' . "query = "
+                                                                    . '$' . "conn->prepare("
+                                                                    . "'SELECT * FROM "
+                                                                    . lcfirst($table_name)
+                                                                    . " WHERE "
+                                                                    . $select_query_string
+                                                                    . "');" . "\n");
+
+                                        fwrite($output_script_file, "\t\t" . '$' . "query->"
+                                                                    . "execute();\n");
+
+                                        fwrite($output_script_file, "\t\t" . '$' . "result = "
+                                                                    . '$' . "query->"
+                                                                    . "fetchAll();\n");
+
+                                        fwrite($output_script_file, "\t\treturn "
+                                                                    . '$' . "result;\n\t}\n");
+
                                         array_pop($function_name);
                                     }
 
