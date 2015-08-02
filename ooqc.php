@@ -58,6 +58,7 @@
                     $table_name = cutWordInBrackersInString($current_string);
                     echo $table_name . '<br>';
 
+//                    $printed_get_for_single_fields = false;
                     $table_fields_data = array();
                     // we found table with name == $table_name, lets go through DB fields
                     while (($table_field = fgets($db_file, 4096)) !== false) {
@@ -84,9 +85,66 @@
                                                         . '$' . "result;\n\t}\n");
 
 
-                            // write queries for ALL fields combinations
-                            $step = 0;
+                            // write queries for get data from single fields
                             $fields_num = count($table_fields_data);
+
+                            for ($i = 0; $i < $fields_num; $i++) {
+                                $select_query_string = lcfirst($table_name)
+                                                     . "." . $table_fields_data[$i]['name']
+                                                     . " = :" . $table_fields_data[$i]['name'];
+
+                                $bind_value_string = "\t\t" . '$' . "query->bindValue("
+                                                   . "':" . $table_fields_data[$i]['name']
+                                                   . "', " . '$'
+                                                   . $table_fields_data[$i]['name']
+                                                   . ");\n";
+
+                                $function_name_string = ucfirst($table_fields_data[$i]['name']);
+
+                                $function_params_string = '$' . $table_fields_data[$i]['name'];
+
+                                fwrite($output_script_file,
+                                        "\n\tfunction get"
+                                        . $table_name
+                                        . "By");
+
+                                fwrite($output_script_file, $function_name_string);
+
+                                fwrite($output_script_file, "(");
+
+                                fwrite($output_script_file, $function_params_string);
+
+                                fwrite($output_script_file, ")\n\t{\n");
+
+                                fwrite($output_script_file, "\t\tglobal "
+                                                            . '$' . "conn;\n");
+
+                                fwrite($output_script_file, "\t\t" . '$' . "query = "
+                                                            . '$' . "conn->prepare("
+                                                            . "'SELECT * FROM "
+                                                            . lcfirst($table_name)
+                                                            . " WHERE "
+                                                            . $select_query_string
+                                                            . "');" . "\n");
+
+                                fwrite($output_script_file, $bind_value_string);
+
+                                fwrite($output_script_file, "\t\t" . '$' . "query->"
+                                                            . "execute();\n");
+
+                                fwrite($output_script_file, "\t\t" . '$'
+                                                            . "result = "
+                                                            . '$' . "query->"
+                                                            . "fetchAll();\n");
+
+                                fwrite($output_script_file, "\t\treturn "
+                                                            . '$'
+                                                            . "result;\n\t}\n");
+                            }
+
+
+                            // write queries for ALL fields combinations
+                            $step = 1;
 
                             while ($step != $fields_num ) {
                                 for ($i = 0; $i < $fields_num - $step; $i++) {
@@ -111,7 +169,7 @@
                                                                  . " = :" . $function_name[$k]['name'];
 
                                             $bind_value_string .= "\t\t" . '$' . "query->bindValue("
-                                                               . "'" . $function_name[$k]['name']
+                                                               . "':" . $function_name[$k]['name']
                                                                . "', " . '$'
                                                                . $function_name[$k]['name']
                                                                . ");\n";
