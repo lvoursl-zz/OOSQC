@@ -1,41 +1,10 @@
 <?php
 
-    function cutWordInBrackersInString($string)
-    {
-        $left_symbol_position = strpos($string, "`") + 1;
-        $right_symbol_position = strrpos($string, "`") -
-                                  strpos($string, "`") - 1;
-        $cropped_string = substr($string,
-                                 $left_symbol_position,
-                                 $right_symbol_position);
-        return $cropped_string;
-    }
-
-    function cutTypeFromString($string)
-    {
-        if (strpos($string, "int") !== false) {
-            return "int";
-        } elseif (strpos($string, "text") !== false) {
-            return "text";
-        } elseif (strpos($string, "varchar") !== false) {
-            return "varchar";
-        } elseif (strpos($string, "date") !== false) {
-            return "date";
-        } else {
-            return 0;
-        }
-    }
+    require_once 'functions.php';
+    require_once 'config.php'
 
     $db_file = fopen("exchange.sql", "r");
     $output_script_file = fopen("db_api.php", "w");
-
-    /* in the future we will take params from command line \ other file */
-    $db_login = "";
-    $db_password = "";
-    $db_name = "";
-    $db_type = "";
-    $db_host = "";
-    /* end params */
 
     if (($db_file) && (is_writable("db_api.php"))) {
         fwrite($output_script_file, "<?php\n\n");
@@ -58,7 +27,6 @@
                     $table_name = cutWordInBrackersInString($current_string);
                     echo $table_name . '<br>';
 
-//                    $printed_get_for_single_fields = false;
                     $table_fields_data = array();
                     // we found table with name == $table_name, lets go through DB fields
                     while (($table_field = fgets($db_file, 4096)) !== false) {
@@ -70,22 +38,33 @@
                             fwrite($output_script_file,
                                     "\n\tfunction getAll$table_name()\n\t{\n ");
 
-                            fwrite($output_script_file, "\t\tglobal " . '$' . "conn;\n");
-                            fwrite($output_script_file, "\t\t" . '$' . "query = "
+                            fwrite($output_script_file, "\t\ttry {\n");
+
+                            fwrite($output_script_file, "\t\t\tglobal " . '$' . "conn;\n");
+                            fwrite($output_script_file, "\t\t\t" . '$' . "query = "
                                                         . '$' . "conn->prepare("
                                                         . "'SELECT * FROM "
                                                         . lcfirst($table_name)
                                                         . "');\n");
-                            fwrite($output_script_file, "\t\t" . '$' . "query->"
+                            fwrite($output_script_file, "\t\t\t" . '$' . "query->"
                                                         . "execute();\n");
-                            fwrite($output_script_file, "\t\t" . '$' . "result = "
+                            fwrite($output_script_file, "\t\t\t" . '$' . "result = "
                                                         . '$' . "query->"
                                                         . "fetchAll();\n");
-                            fwrite($output_script_file, "\t\treturn "
-                                                        . '$' . "result;\n\t}\n");
+                            fwrite($output_script_file, "\t\t\treturn "
+                                                        . '$' . "result;\n");
+
+                            fwrite($output_script_file, "\t\t} catch"
+                                                         . "(PDOException "
+                                                         . '$' . "e) {\n");
+
+                            fwrite($output_script_file, "\t\t\treturn null;\n"
+                                                        . "\t\t}\n");
+
+                            fwrite($output_script_file, "\t}\n");
 
 
-                            // write queries for get data from single fields
+                            // write queries for get data from SINGLE fields
                             $fields_num = count($table_fields_data);
 
                             for ($i = 0; $i < $fields_num; $i++) {
@@ -93,7 +72,7 @@
                                                      . "." . $table_fields_data[$i]['name']
                                                      . " = :" . $table_fields_data[$i]['name'];
 
-                                $bind_value_string = "\t\t" . '$' . "query->bindValue("
+                                $bind_value_string = "\t\t\t" . '$' . "query->bindValue("
                                                    . "':" . $table_fields_data[$i]['name']
                                                    . "', " . '$'
                                                    . $table_fields_data[$i]['name']
@@ -116,10 +95,12 @@
 
                                 fwrite($output_script_file, ")\n\t{\n");
 
-                                fwrite($output_script_file, "\t\tglobal "
+                                fwrite($output_script_file, "\t\ttry {\n");
+
+                                fwrite($output_script_file, "\t\t\tglobal "
                                                             . '$' . "conn;\n");
 
-                                fwrite($output_script_file, "\t\t" . '$' . "query = "
+                                fwrite($output_script_file, "\t\t\t" . '$' . "query = "
                                                             . '$' . "conn->prepare("
                                                             . "'SELECT * FROM "
                                                             . lcfirst($table_name)
@@ -129,17 +110,26 @@
 
                                 fwrite($output_script_file, $bind_value_string);
 
-                                fwrite($output_script_file, "\t\t" . '$' . "query->"
+                                fwrite($output_script_file, "\t\t\t" . '$' . "query->"
                                                             . "execute();\n");
 
-                                fwrite($output_script_file, "\t\t" . '$'
+                                fwrite($output_script_file, "\t\t\t" . '$'
                                                             . "result = "
                                                             . '$' . "query->"
                                                             . "fetchAll();\n");
 
-                                fwrite($output_script_file, "\t\treturn "
+                                fwrite($output_script_file, "\t\t\treturn "
                                                             . '$'
-                                                            . "result;\n\t}\n");
+                                                            . "result;\n");
+
+                                fwrite($output_script_file, "\t\t} catch"
+                                                             . "(PDOException "
+                                                             . '$' . "e) {\n");
+
+                                fwrite($output_script_file, "\t\t\treturn null;\n"
+                                                            . "\t\t}\n");
+
+                                fwrite($output_script_file, "\t}\n");
                             }
 
 
@@ -168,7 +158,7 @@
                                                                  . "." . $function_name[$k]['name']
                                                                  . " = :" . $function_name[$k]['name'];
 
-                                            $bind_value_string .= "\t\t" . '$' . "query->bindValue("
+                                            $bind_value_string .= "\t\t\t" . '$' . "query->bindValue("
                                                                . "':" . $function_name[$k]['name']
                                                                . "', " . '$'
                                                                . $function_name[$k]['name']
@@ -197,10 +187,12 @@
 
                                         fwrite($output_script_file, ")\n\t{\n");
 
-                                        fwrite($output_script_file, "\t\tglobal "
+                                        fwrite($output_script_file, "\t\ttry {\n");
+
+                                        fwrite($output_script_file, "\t\t\tglobal "
                                                                     . '$' . "conn;\n");
 
-                                        fwrite($output_script_file, "\t\t" . '$' . "query = "
+                                        fwrite($output_script_file, "\t\t\t" . '$' . "query = "
                                                                     . '$' . "conn->prepare("
                                                                     . "'SELECT * FROM "
                                                                     . lcfirst($table_name)
@@ -210,17 +202,26 @@
 
                                         fwrite($output_script_file, $bind_value_string);
 
-                                        fwrite($output_script_file, "\t\t" . '$' . "query->"
+                                        fwrite($output_script_file, "\t\t\t" . '$' . "query->"
                                                                     . "execute();\n");
 
-                                        fwrite($output_script_file, "\t\t" . '$'
+                                        fwrite($output_script_file, "\t\t\t" . '$'
                                                                     . "result = "
                                                                     . '$' . "query->"
                                                                     . "fetchAll();\n");
 
-                                        fwrite($output_script_file, "\t\treturn "
+                                        fwrite($output_script_file, "\t\t\treturn "
                                                                     . '$'
-                                                                    . "result;\n\t}\n");
+                                                                    . "result;\n");
+
+                                        fwrite($output_script_file, "\t\t} catch"
+                                                                     . "(PDOException "
+                                                                     . '$' . "e) {\n");
+
+                                        fwrite($output_script_file, "\t\t\treturn null;\n"
+                                                                    . "\t\t}\n");
+
+                                        fwrite($output_script_file, "\t}\n");
 
 
                                         array_pop($function_name);
